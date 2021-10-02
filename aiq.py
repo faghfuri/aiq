@@ -27,6 +27,8 @@ def generateUpdateStatement(base: typing.Dict, mutation: typing.Dict) -> typing.
         return {}
 
     post_indexes = generate_post_indexes(base)
+
+    # Creating a list of commands to be executed.
     cmds = {
         "$add": defaultdict(list),
         "$remove": defaultdict(dict),
@@ -67,7 +69,7 @@ def generateUpdateStatement(base: typing.Dict, mutation: typing.Dict) -> typing.
     return cleanup(cmds)
 
 
-def cleanup_post(post: typing.Dict[str, typing.Any]) -> typing.Dict:
+def cleanup_post(post: typing.Dict) -> typing.Dict:
     """ cleanup_post cleans up a post before being sent to DBMS for adding
         This will remove any key that is not a valid field to be added.
     """
@@ -80,7 +82,7 @@ def cleanup_post(post: typing.Dict[str, typing.Any]) -> typing.Dict:
     return res
 
 
-def mention_mutations(cmds, base_post, mutation: typing.Dict[str, typing.Any], post_index: int):
+def mention_mutations(cmds, base_post, mutation: typing.Dict, post_index: int):
     """mention_mutations: processes mention level mutations
         e.g. {'_id': 6, '_delete': True} will generate {"$remove": {"posts.1.mentions.1": true}}
     Excetption:
@@ -132,5 +134,7 @@ def generate_post_indexes(base: typing.Dict) -> typing.Dict[int, int]:
     """generate_post_indexes returns a map of post id to index"""
     res = {}
     for index, post in enumerate(base['posts']):
+        if post.get('_id', None) is None:
+            raise KeyError(f'Post {index} has no id')
         res[post['_id']] = index
     return res
