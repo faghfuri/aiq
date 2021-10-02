@@ -1,0 +1,5 @@
+{
+    "$remove": {
+        "posts.1.mentions.1": true
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "$add": {
+        "posts.1.mentions": [
+            {
+                "text": "banana"
+            }
+        ]
+    }
+}

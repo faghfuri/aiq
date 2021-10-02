@@ -1,0 +1,15 @@
+{
+    "$update": {
+        "posts.0.value": "too"
+    },
+    "$add": {
+        "posts": [
+            {
+                "value": "four"
+            }
+        ]
+    },
+    "$remove": {
+        "posts.2": true
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "posts": [
+        {
+            "_id": 3,
+            "mentions": [
+                {
+                    "_id": 6,
+                    "_delete": true
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,5 @@
+{
+    "$remove": {
+        "posts.0": true
+    }
+}

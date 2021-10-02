@@ -1,0 +1,12 @@
+{
+    "posts": [
+        {
+            "_id": 3,
+            "mentions": [
+                {
+                    "text": "banana"
+                }
+            ]
+        }
+    ]
+}
