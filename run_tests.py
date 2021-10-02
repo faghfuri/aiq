@@ -14,11 +14,12 @@ def format_dict(d: typing.Dict) -> str:
 if __name__ == '__main__':
     base = json.load(open('testdata/base.json'))
     for test in range(7):
+        print(f'Running test #{test}')
         mutation = json.load(open(f'testdata/input_{test}.json'))
         want = format_dict(json.load(open(f'testdata/output_{test}.json')))
         try:
             got = format_dict(aiq.generateUpdateStatement(base, mutation))
-        except IOError as e:  # Exception
+        except Exception as e:
             print(f'Test for test #{test}:')
             print(f'  generateUpdateStatement() failed with {e}')
             print('  Mutation:\n', json.dumps(mutation, indent="  "))

@@ -1,13 +1,10 @@
 from collections import defaultdict
 import typing
-import json
-import logging
 
-
-class Error(Exception):
-    pass
-
-
+# To make code forward compatible, we can copy either all fields sent to us
+# as part of mutation or only copy known fields. This code assumes a knows
+# set of fields exist for both mentions and posts.
+POST_FIELDS = ['value']
 MENTION_FIELDS = ['text']
 
 
@@ -19,10 +16,10 @@ def generateUpdateStatement(base: typing.Dict, mutation: typing.Dict) -> typing.
     - Append: e.g. { "posts": [{"value": "four"}] }
     - Remive: e.g. { "posts": [{"_id": 2, "_delete": true}] }
     Returns:
-        Output would be a DBMS command dictionary that will use any of the valid
-    command ($add, $remove or $update)
+        Output would be a DBMS command dictionary that will use DBMS commands 
+        ($add, $remove or $update). See the testdata for more information.
     Excetption:
-        Will raise aiq.Exception
+        Will raise KeyError if invalid id is provided.
     """
     # Return if no mutation is requested, and throw an expection if the
     # object is invalid.
@@ -38,28 +35,56 @@ def generateUpdateStatement(base: typing.Dict, mutation: typing.Dict) -> typing.
 
     for post in mutation['posts']:
         if post.get('_id'):
+            # Post with an existing id updates existing posts.
+            if post_indexes.get(post['_id'], None) is None:
+                raise KeyError(
+                    f'Invalid post id {post["_id"]} provided for update')
             post_index = post_indexes[post['_id']]
+
+            # If post is being deletd, the rest of the command is ignored.
             if post.get('_delete'):
                 cmds['$remove'][f'posts.{post_index}'] = True
                 continue
 
             # Post level updates:
-            if post.get('value'):
-                cmds['$update'][f'posts.{post_index}.value'] = post['value']
+            for key in POST_FIELDS:
+                # This will allow setting a value to '' to remove the string.
+                if post.get(key, None) is not None:
+                    update_cmd = f'posts.{post_index}.{key}'
+                    cmds['$update'][update_cmd] = post[key]
+
             # Mention level updates:
             if post.get('mentions'):
                 mention_mutations(
                     cmds, base['posts'][post_index], post['mentions'], post_index)
             continue
 
-        cmds['$add']['posts'].append(post)
+        # If no id is provided, add post.
+        # Note: We assume we can add mutations as part of adding post.
+        # If this is not valid, this code should change
+        cmds['$add']['posts'].append(cleanup_post(post))
 
     return cleanup(cmds)
 
 
-def mention_mutations(cmds, base_post, mutation: typing.Dict, post_index: int):
+def cleanup_post(post: typing.Dict[str, typing.Any]) -> typing.Dict:
+    """ cleanup_post cleans up a post before being sent to DBMS for adding
+        This will remove any key that is not a valid field to be added.
+    """
+    res = {}
+    for key in POST_FIELDS:
+        if post.get(key):
+            res[key] = post[key]
+    if post.get('mentions'):
+        res['mentions'] = post['mentions']
+    return res
+
+
+def mention_mutations(cmds, base_post, mutation: typing.Dict[str, typing.Any], post_index: int):
     """mention_mutations: processes mention level mutations
-    e.g. {'_id': 6, '_delete': True} will generate {"$remove": {"posts.1.mentions.1": true}}
+        e.g. {'_id': 6, '_delete': True} will generate {"$remove": {"posts.1.mentions.1": true}}
+    Excetption:
+        Will raise KeyError if invalid id is provided.
     """
     # Generate mention index for the current post:
     indexes = {}
@@ -70,7 +95,11 @@ def mention_mutations(cmds, base_post, mutation: typing.Dict, post_index: int):
     for mention in mutation:
         # If mention has an _id, it should either be updated or deleted:
         if mention.get('_id'):
+            if indexes.get(mention['_id'], None) is None:
+                raise KeyError(
+                    f'Invalid mention id {mention["_id"]} provided in post{base_post["_id"]}')
             mention_index = indexes[mention['_id']]
+
             # If a mention has deleted field, we ignore rest of its fields.
             if mention.get('_delete'):
                 cmds['$remove'][f'posts.{post_index}.mentions.{mention_index}'] = True
